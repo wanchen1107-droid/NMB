@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>變速小恐龍</title>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f7f7f7; font-family: Arial, sans-serif; overflow: hidden; }
+        canvas { background: #fff; border-bottom: 2px solid #535353; }
+        .info { position: absolute; top: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <h2 id="score">分數: 0</h2>
+        <p>按 **空白鍵** 或 **點擊畫面** 跳躍 / 結束時按 **空白鍵** 快速重開</p>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreElement = document.getElementById('score');
+
+    canvas.width = 800;
+    canvas.height = 200;
+
+    let score = 0;
+    let gameActive = true;
+    let frame = 0;
+
+    // 恐龍設定
+    const dino = { x: 50, y: 150, w: 40, h: 40, dy: 0, jumpForce: 12, gravity: 0.6, grounded: true };
+
+    // 障礙物設定
+    let obstacles = [];
+    let baseSpeed = 5;
+    let currentSpeed = 5;
+
+    function spawnObstacle() {
+        obstacles.push({ x: canvas.width, w: 20, h: 40 });
+    }
+
+    function resetGame() {
+        score = 0;
+        obstacles = [];
+        baseSpeed = 5;
+        currentSpeed = 5;
+        gameActive = true;
+        dino.dy = 0;
+        dino.y = 150;
+        update();
+    }
+
+    function update() {
+        if (!gameActive) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        frame++;
+
+        // --- 核心邏輯：速度忽快忽慢 ---
+        // 利用正弦函數 (Sine Wave) 讓速度在 baseSpeed 的基礎上週期性波動
+        currentSpeed = baseSpeed + Math.sin(frame * 0.02) * 3; 
+
+        // 跳躍邏輯
+        dino.dy += dino.gravity;
+        dino.y += dino.dy;
+        if (dino.y > 150) {
+            dino.y = 150;
+            dino.dy = 0;
+            dino.grounded = true;
+        }
+
+        // 繪製恐龍
+        ctx.fillStyle = '#535353';
+        ctx.fillRect(dino.x, dino.y, dino.w, dino.h);
+
+        // 障礙物邏輯
+        if (frame % 100 === 0) spawnObstacle();
+
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            obstacles[i].x -= currentSpeed;
+
+            // 繪製障礙物
+            ctx.fillStyle = '#ff4d4d';
+            ctx.fillRect(obstacles[i].x, 160, obstacles[i].w, obstacles[i].h);
+
+            // 碰撞檢測
+            if (dino.x < obstacles[i].x + obstacles[i].w &&
+                dino.x + dino.w > obstacles[i].x &&
+                dino.y < 160 + obstacles[i].h &&
+                dino.y + dino.h > 160) {
+                gameActive = false;
+            }
+
+            // 超出畫面移除並加分
+            if (obstacles[i].x + obstacles[i].w < 0) {
+                obstacles.splice(i, 1);
+                score++;
+                scoreElement.innerText = `分數: ${score}`;
+                baseSpeed += 0.1; // 基礎難度隨分數緩慢增加
+            }
+        }
+
+        if (gameActive) {
+            requestAnimationFrame(update);
+        } else {
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#fff';
+            ctx.font = '30px Arial';
+            ctx.fillText('遊戲結束！按空白鍵重來', canvas.width/2 - 150, canvas.height/2);
+        }
+    }
+
+    // 控制與快速重開
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            if (gameActive && dino.grounded) {
+                dino.dy = -dino.jumpForce;
+                dino.grounded = false;
+            } else if (!gameActive) {
+                resetGame();
+            }
+        }
+    });
+
+    canvas.addEventListener('touchstart', () => {
+        if (gameActive && dino.grounded) {
+            dino.dy = -dino.jumpForce;
+            dino.grounded = false;
+        } else if (!gameActive) {
+            resetGame();
+        }
+    });
+
+    update();
+</script>
+</body>
+</html>
