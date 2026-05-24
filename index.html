@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>小恐龍進化 APP</title>
+    <title>小恐龍進化 APP - 瘋狂飆速版</title>
     
     <style>
         /* 基礎設置 */
@@ -43,7 +43,7 @@
 
         /* 障礙物樣式 */
         .obstacle { position: absolute; bottom: 0; z-index: 5; background-color: #535353; border-radius: 3px; }
-        .bird { bottom: 80px; border-radius: 50%; background-color: #888; }
+        .bird { bottom: 85px; border-radius: 50%; background-color: #888; }
 
         /* UI 與 訊息 */
         #ui { 
@@ -82,7 +82,9 @@
     const statusEl = document.getElementById('evo-status');
     const msgEl = document.getElementById('msg');
 
-    let isRun = true, score = 0, baseSpeed = 5, evo = 'normal';
+    // 【修改點】初始基礎速度調快至 8 (原本是 5)
+    let isRun = true, score = 0, baseSpeed = 8, evo = 'normal';
+    // 為了配合變快的速度，微調了重力與跳躍手感
     let dino = { x: 50, y: 0, vy: 0, w: 40, h: 45, jump: false };
     let obs = [], timer = 0;
 
@@ -90,7 +92,7 @@
         if (e.cancelable) e.preventDefault();
         if (!isRun) { reset(); } 
         else if (!dino.jump) {
-            dino.vy = -16; 
+            dino.vy = -17; // 稍微增強跳躍力道以應付極速
             dino.jump = true;
         }
     };
@@ -103,16 +105,16 @@
         if (!isRun) return;
 
         // 1. 物理運動
-        dino.vy += 0.8;
+        dino.vy += 0.95; // 稍微加快下墜速度，讓操作更緊湊
         dino.y -= dino.vy;
         if (dino.y <= 0) { dino.y = 0; dino.vy = 0; dino.jump = false; }
         dinoEl.style.bottom = dino.y + 'px';
 
-        // 2. 分數與基礎難度遞增 (每 500 分基礎速度增加)
+        // 2. 分數與基礎難度遞增 (每 400 分速度就變快 0.4，成長得更快)
         score++;
         let s = Math.floor(score/5);
         scoreEl.innerText = `SCORE: ${s.toString().padStart(5, '0')}`;
-        if (score % 500 === 0) baseSpeed += 0.3;
+        if (score % 400 === 0) baseSpeed += 0.4;
 
         // 進化判定
         if (s >= 1000 && evo !== 'flame') {
@@ -148,13 +150,12 @@
             if (obs[i].x < -60) { obs[i].el.remove(); obs.splice(i, 1); }
         }
 
-        // 生成障礙物
-        if (++timer > (Math.max(40, 100 - baseSpeed * 3))) {
-            let isBird = Math.random() > 0.8 && s > 300;
+        // 隨速度加快，縮短生成間隔（避免因為速度快導致兩個障礙物距離太遠）
+        if (++timer > (Math.max(25, 80 - baseSpeed * 4))) {
+            let isBird = Math.random() > 0.8 && s > 250;
             let w = 25, h = isBird ? 25 : 35 + Math.random() * 25;
             
-            // 【核心修改】計算該障礙物的專屬隨機速度：基礎速度 ± 15%
-            // Math.random() * 0.3 - 0.15 會產生一個介於 -0.15 到 +0.15 的變數
+            // 隨機速度：基礎速度 ± 15% (落差控制在合理範圍)
             let speedModifier = 1 + (Math.random() * 0.3 - 0.15); 
             let assignedSpeed = baseSpeed * speedModifier;
 
@@ -164,11 +165,10 @@
             el.style.left = '100%';
             container.appendChild(el);
             
-            // 將賦予的速度隨障礙物物件一起儲存
             obs.push({ 
                 el, 
                 x: container.offsetWidth, 
-                y: isBird ? 80 : 0, 
+                y: isBird ? 85 : 0, 
                 w, 
                 h,
                 currentSpeed: assignedSpeed 
@@ -178,6 +178,7 @@
     }
 
     function checkCollision() {
+        // Hitbox 稍微縮小，提供極速狀態下的容錯率
         let hb = { l: dino.x + 15, r: dino.x + dino.w - 15, t: dino.y + dino.h - 10, b: dino.y + 5 };
         for (let o of obs) {
             if (hb.r > o.x && hb.l < o.x + o.w && hb.t > o.y && hb.b < o.y + o.h) {
@@ -187,7 +188,7 @@
     }
 
     function reset() {
-        score = 0; baseSpeed = 5; evo = 'normal'; dino.y = 0; dino.vy = 0; isRun = true;
+        score = 0; baseSpeed = 8; evo = 'normal'; dino.y = 0; dino.vy = 0; isRun = true;
         msgEl.style.display = 'none'; dinoEl.className = ''; 
         statusEl.innerText = '🐣 幼年恐龍';
         obs.forEach(o => o.el.remove()); obs = [];
